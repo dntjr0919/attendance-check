@@ -86,9 +86,17 @@ function doPost(e) {
 
         // 동시 제출 시 시트 생성·헤더 작성이 겹치지 않도록 처리
         const lock = LockService.getScriptLock();
-        lock.waitLock(10000);
 
-        try {
+if (!lock.tryLock(30000)) {
+    return createJsonResponse_({
+        ok: false,
+        error: 'LOCK_TIMEOUT',
+        message:
+            '제출 요청이 몰려 저장 대기 시간을 초과했습니다. 잠시 후 다시 제출해 주세요.'
+    });
+}
+
+try {
             let recordSheet = spreadsheet.getSheetByName('출석 기록');
 
             if (!recordSheet) {
@@ -156,7 +164,7 @@ function createJsonResponse_(data) {
         .setMimeType(ContentService.MimeType.JSON);
 }
 // 스프레드시트 주소에서 /d/ 다음부터 /edit 앞까지의 값
-const ATTENDANCE_SPREADSHEET_ID = '여기에_스프레드시트_ID';
+const ATTENDANCE_SPREADSHEET_ID = '1GEqDEnnRXtMY2YpoUFXv0dvwNi2HAi5DSOvMe13cASk';
 
 function validateEntryCode_(enteredCode) {
     const spreadsheet = SpreadsheetApp.openById(
