@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>마음챙김 출석부</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Noto Sans KR & Gaegu (for handwritten warm vibe) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        mindful: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                        },
+                        calm: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                        },
+                        warm: {
+                            50: '#fffbebe6',
+                            100: '#fef3c7',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Noto Sans KR', 'sans-serif'],
+                        hand: ['Gaegu', 'cursive']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbars and sleek range inputs */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: #16a34a;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.1s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+        .bg-pattern {
+            background-color: #f8fafc;
+            background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+    </style>
+</head>
+<body class="bg-pattern min-h-screen font-sans text-slate-800 antialiased flex flex-col justify-between">
+
+    <!-- Top Header -->
+    <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/80 shadow-sm">
+        <div class="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <div class="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xl shadow-inner">
+                    🌿
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-800 leading-tight">마음챙김 출석부</h1>
+                    <p class="text-xs text-slate-500" id="current-date-display">오늘의 출석 체크</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-xl w-full mx-auto p-4 sm:p-6 flex-grow">
+        
+        <!-- Webhook Status Indicator Banner -->
+        <div id="webhook-status-banner" class="mb-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl text-xs flex items-center justify-between shadow-sm">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-triangle-exclamation text-amber-500 text-sm"></i>
+                <span>출석 제출을 사용할 수 없습니다. 선생님께 문의하세요.</span>
+            </div>
+        </div>
+
+        <!-- Student Form Container -->
+        <form id="attendance-form" onsubmit="handleFormSubmit(event)" class="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-5 sm:p-7 space-y-6">
+            
+            <!-- Step 1: Student Info & Entry Passcode -->
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <label class="block text-sm font-bold text-slate-700">
+                        <span class="text-emerald-600 mr-1">1.</span> 학생 정보 & 오늘의 입장 코드
+                    </label>
+                    <span class="text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full font-medium">필수</span>
+                </div>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">학번 및 이름</label>
+                        <input type="text" id="student-info" required placeholder="예: 10101 홍길동"
+                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">
+                            오늘의 입장 코드 
+                            <i class="fa-solid fa-lock text-slate-400 ml-1 text-xs" title="칠판이나 선생님이 안내해준 코드"></i>
+                        </label>
+                        <input type="password" id="entry-code" required placeholder="선생님이 안내한 코드 입력"
+                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm transition-all">
+                    </div>
+                </div>
+            </div>
+
+            <hr class="border-slate-100">
+
+            <!-- Step 2: Mood Temperature -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <label class="block text-sm font-bold text-slate-700">
+                        <span class="text-emerald-600 mr-1">2.</span> 오늘의 기분 온도 (°C)
+                    </label>
+                    <span id="mood-temp-badge" class="text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 transition-colors">
+                        36.5 °C (보통이에요)
+                    </span>
+                </div>
+                <p class="text-xs text-slate-500">지금 나의 마음 온도는 몇 도인가요? 슬라이더를 움직여보세요.</p>
+                
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                    <div class="flex justify-between items-center text-2xl px-1">
+                        <span id="mood-emoji-min">🥶</span>
+                        <span id="mood-emoji-current" class="text-4xl transform hover:scale-125 transition-transform duration-200 cursor-default">🙂</span>
+                        <span id="mood-emoji-max">🔥</span>
+                    </div>
+                    <input type="range" id="mood-temp-range" min="0" max="100" value="36.5" step="0.5" oninput="updateMoodTempDisplay(this.value)"
+                        class="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600">
+                    <div class="flex justify-between text-[11px] text-slate-400 font-medium px-0.5">
+                        <span>0°C (차갑고 우울함)</span>
+                        <span>50°C (평온함)</span>
+                        <span>100°C (에너지 넘침)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Physical Temperature/Condition -->
+            <div class="space-y-3">
+                <label class="block text-sm font-bold text-slate-700">
+                    <span class="text-emerald-600 mr-1">3.</span> 몸 컨디션 / 신체 온도
+                </label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="body-status-container">
+                    <!-- Dynamic Radio Chips -->
+                    <button type="button" onclick="selectBodyStatus('상쾌함 ⚡')" class="body-status-btn p-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:border-emerald-400 hover:bg-emerald-50 transition-all flex flex-col items-center gap-1">
+                        <span class="text-lg">⚡</span> 상쾌함
+                    </button>
+                    <button type="button" onclick="selectBodyStatus('보통/양호 😌')" class="body-status-btn p-2.5 rounded-xl border border-emerald-500 bg-emerald-50 text-xs font-semibold text-emerald-800 transition-all flex flex-col items-center gap-1">
+                        <span class="text-lg">😌</span> 보통/양호
+                    </button>
+                    <button type="button" onclick="selectBodyStatus('피곤함/나른 🥱')" class="body-status-btn p-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:border-emerald-400 hover:bg-emerald-50 transition-all flex flex-col items-center gap-1">
+                        <span class="text-lg">🥱</span> 피곤함/나른
+                    </button>
+                    <button type="button" onclick="selectBodyStatus('몸살/두통 🤒')" class="body-status-btn p-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:border-emerald-400 hover:bg-emerald-50 transition-all flex flex-col items-center gap-1">
+                        <span class="text-lg">🤒</span> 몸살/두통
+                    </button>
+                </div>
+                <input type="hidden" id="selected-body-status" value="보통/양호 😌" required>
+            </div>
+
+            <!-- Step 4: Emotion Word Selection -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <label class="block text-sm font-bold text-slate-700">
+                        <span class="text-emerald-600 mr-1">4.</span> 오늘의 감정 단어 선택 (최대 3개)
+                    </label>
+                    <span id="emotion-count-badge" class="text-xs text-slate-400">0/3 선택</span>
+                </div>
+                
+                <div class="flex flex-wrap gap-2" id="emotion-words-container">
+                    <!-- Emotion Chips JavaScript injected -->
+                </div>
+            </div>
+
+            <!-- Step 5: Resolution for Today -->
+            <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <label class="block text-sm font-bold text-slate-700">
+                        <span class="text-emerald-600 mr-1">5.</span> 오늘 하루 한 줄 다짐
+                    </label>
+                    <button type="button" onclick="generateRandomPrompt()" class="text-xs text-emerald-600 hover:text-emerald-800 font-medium">
+                        🎲 아이디어 받기
+                    </button>
+                </div>
+                <textarea id="daily-resolution" required rows="3" placeholder="오늘 하루 나 자신이나 친구들에게 전하는 짧은 다짐이나 목표를 적어보세요."
+                    class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm transition-all resize-none leading-relaxed"></textarea>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="pt-2">
+                <button type="submit" id="submit-btn"
+                    class="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/30 active:scale-[0.99] transition-all flex items-center justify-center space-x-2 text-base">
+                    <i class="fa-solid fa-paper-plane"></i>
+                    <span>마음챙김 출석 제출하기</span>
+                </button>
+            </div>
+
+        </form>
+
+        <!-- Success Result Card (Hidden by default) -->
+        <div id="success-card" class="hidden bg-white rounded-3xl shadow-xl border border-emerald-100 p-6 sm:p-8 text-center space-y-6">
+            <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-4xl mx-auto shadow-inner animate-bounce">
+                🌱
+            </div>
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">출석 완료</span>
+                <h2 class="text-2xl font-bold text-slate-800 mt-2">오늘의 마음 출석이 저장되었습니다.</h2>
+                <p class="text-sm text-slate-500 mt-1" id="completed-timestamp"></p>
+            </div>
+
+            <!-- Wise Mindfulness Quote -->
+            <div class="p-4 bg-emerald-50/60 rounded-2xl border border-emerald-100/80 text-left space-y-1">
+                <p class="text-xs font-bold text-emerald-800 flex items-center gap-1">
+                    <i class="fa-solid fa-quote-left text-emerald-500"></i> 오늘의 마음 쉼표
+                </p>
+                <p class="text-sm font-hand text-slate-700 text-lg leading-relaxed pt-1" id="random-quote">
+                    "오늘 당신이 맞이하는 하루는 단 하나뿐인 소중한 선물입니다."
+                </p>
+            </div>
+
+            <!-- Summary Receipt -->
+            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-left text-xs space-y-2 text-slate-600">
+                <div class="flex justify-between border-b border-slate-200/60 pb-1.5">
+                    <span class="font-medium text-slate-400">학번/이름:</span>
+                    <span id="summary-student" class="font-bold text-slate-800"></span>
+                </div>
+                <div class="flex justify-between border-b border-slate-200/60 pb-1.5">
+                    <span class="font-medium text-slate-400">기분 온도:</span>
+                    <span id="summary-mood" class="font-bold text-slate-800"></span>
+                </div>
+                <div class="flex justify-between border-b border-slate-200/60 pb-1.5">
+                    <span class="font-medium text-slate-400">신체 상태:</span>
+                    <span id="summary-body" class="font-bold text-slate-800"></span>
+                </div>
+                <div class="flex justify-between border-b border-slate-200/60 pb-1.5">
+                    <span class="font-medium text-slate-400">선택한 감정:</span>
+                    <span id="summary-emotions" class="font-bold text-slate-800"></span>
+                </div>
+                <div class="pt-1">
+                    <span class="font-medium text-slate-400 block mb-1">오늘의 다짐:</span>
+                    <p id="summary-resolution" class="font-medium text-slate-800 bg-white p-2.5 rounded-xl border border-slate-200/80 italic"></p>
+                </div>
+            </div>
+
+            <button onclick="resetForm()" class="w-full py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition-all text-sm">
+                다른 학생 추가 등록하기 / 다시 작성
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-6 text-xs text-slate-400 space-y-1">
+        <p>🌸 마음챙김 출석부 · 내 마음을 가꾸는 아침 시간</p>
+        <p class="text-[10px] text-slate-300">GitHub Pages & Google Apps Script 연동 호환</p>
+    </footer>
+    
+    <script>
+        // Default Emotion Palette Options
+        const EMOTION_LIST = [
+            { word: "기쁨 😄", type: "positive" },
+            { word: "설렘 💓", type: "positive" },
+            { word: "평온함 🍃", type: "positive" },
+            { word: "감사함 🙏", type: "positive" },
+            { word: "희망차다 🌈", type: "positive" },
+            { word: "소소함 ☕", type: "neutral" },
+            { word: "무던함 ☁️", type: "neutral" },
+            { word: "피곤함 😴", type: "neutral" },
+            { word: "불안함 😟", type: "challenging" },
+            { word: "슬픔 🌧️", type: "challenging" },
+            { word: "부담감 🎒", type: "challenging" },
+            { word: "짜증남 ⚡", type: "challenging" }
+        ];
+
+        // Motivational Prompts for Students
+        const RANDOM_PROMPTS = [
+            "오늘 나 자신에게 따뜻한 응원의 한마디 건네기!",
+            "옆 친구에게 밝은 미소로 인사하며 시작하기.",
+            "수업 시간에 한 번 이상 집중해서 발표해보기.",
+            "마음이 급할 때 깊게 숨 세 번 쉬어보기.",
+            "오늘 하루 나만의 작은 소소한 행복 찾아보기.",
+            "실수해도 괜찮아, 다시 시작하면 돼!"
+        ];
+
+        // Mindful Wisdom Quotes
+        const MINDFUL_QUOTES = [
+            "“오늘 당신이 맞이하는 아침은 새로운 가능성이 가득한 화폭입니다.”",
+            "“천천히 호흡을 가다듬으세요. 모든 좋은 일은 평온한 마음에서 시작됩니다.”",
+            "“작은 걸음이라도 매일 나아가는 자신을 대견하게 여겨주세요.”",
+            "“당신의 기분 온도가 몇 도이든, 오늘 하루는 충분히 빛날 가치가 있습니다.”",
+            "“마음의 소리에 귀 기울이는 아침이 더 행복한 하루를 만듭니다.”"
+        ];
+
+        // State variables
+        let selectedEmotions = [];
+        let configPasscode = localStorage.getItem('mindful_passcode') || '1024';
+        // 모든 접속자가 함께 사용하는 구글 Apps Script 배포 주소
+// 실제 주소를 받으면 아래 빈 문자열 안에 넣으세요.
+// 주소 형식: https://script.google.com/macros/s/배포_ID/exec
+const webhookUrl = 'https://script.google.com/macros/s/AKfycbxpcJqFdRTHKB26p39xrmg1WMEKS92xeCr4TUwJiVEoc0dN1l-GfOedWzBIycIihsYYgQ/exec';
+
+        // Initialize App on DOM Load
+        window.addEventListener('DOMContentLoaded', () => {
+    initDateDisplay();
+    renderEmotionChips();
+    updateWebhookBannerStatus();
+    updateLocalCount();
+});
+
+        // Set Current Date Display
+        function initDateDisplay() {
+            const now = new Date();
+            const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' };
+            document.getElementById('current-date-display').innerText = now.toLocaleDateString('ko-KR', options);
+        }
+
+        // Render Emotion Chips
+        function renderEmotionChips() {
+            const container = document.getElementById('emotion-words-container');
+            container.innerHTML = '';
+
+            EMOTION_LIST.forEach((item) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.dataset.word = item.word;
+                btn.className = `emotion-chip px-3 py-1.5 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
+                    selectedEmotions.includes(item.word)
+                        ? 'bg-emerald-600 border-emerald-600 text-white font-bold shadow-sm'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50'
+                }`;
+                btn.innerText = item.word;
+                btn.onclick = () => toggleEmotion(item.word);
+                container.appendChild(btn);
+            });
+        }
+
+        // Toggle Emotion Selection (Max 3)
+        function toggleEmotion(word) {
+            if (selectedEmotions.includes(word)) {
+                selectedEmotions = selectedEmotions.filter(w => w !== word);
+            } else {
+                if (selectedEmotions.length >= 3) {
+                    showToast('감정 단어는 최대 3개까지 선택 가능합니다.');
+                    return;
+                }
+                selectedEmotions.push(word);
+            }
+            document.getElementById('emotion-count-badge').innerText = `${selectedEmotions.length}/3 선택`;
+            renderEmotionChips();
+        }
+
+        function updateMoodTempDisplay(val) {
+            const badge = document.getElementById('mood-temp-badge');
+            const emojiDisplay = document.getElementById('mood-emoji-current');
+            const numVal = parseFloat(val);
+
+            let label = '';
+            let emoji = '🙂';
+            let badgeStyle = 'bg-emerald-100 text-emerald-800';
+
+            if (numVal < 20) {
+                label = '차갑고 가라앉음';
+                emoji = '🥶';
+                badgeStyle = 'bg-sky-100 text-sky-800';
+            } else if (numVal < 40) {
+                label = '조금 차가움/우울';
+                emoji = '🌧️';
+                badgeStyle = 'bg-blue-100 text-blue-800';
+            } else if (numVal < 60) {
+                label = '보통 / 평온함';
+                emoji = '🙂';
+                badgeStyle = 'bg-emerald-100 text-emerald-800';
+            } else if (numVal < 80) {
+                label = '따뜻함 / 기분 좋음';
+                emoji = '😊';
+                badgeStyle = 'bg-amber-100 text-amber-800';
+            } else {
+                label = '열정 가득 / 에너지 넘침';
+                emoji = '☀️';
+                badgeStyle = 'bg-rose-100 text-rose-800';
+            }
+
+            badge.innerText = `${numVal.toFixed(1)} °C (${label})`;
+            badge.className = `text-xs font-bold px-3 py-1 rounded-full transition-colors ${badgeStyle}`;
+            emojiDisplay.innerText = emoji;
+        }
+
+        // Select Body Status
+        function selectBodyStatus(statusStr) {
+            document.getElementById('selected-body-status').value = statusStr;
+            const buttons = document.querySelectorAll('.body-status-btn');
+            buttons.forEach(btn => {
+                if (btn.innerText.includes(statusStr.split(' ')[0])) {
+                    btn.className = 'body-status-btn p-2.5 rounded-xl border border-emerald-500 bg-emerald-50 text-xs font-semibold text-emerald-800 transition-all flex flex-col items-center gap-1 shadow-sm';
+                } else {
+                    btn.className = 'body-status-btn p-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:border-emerald-400 hover:bg-emerald-50 transition-all flex flex-col items-center gap-1';
+                }
+            });
+        }
+
+        // Generate Random Prompt
+        function generateRandomPrompt() {
+            const randomIndex = Math.floor(Math.random() * RANDOM_PROMPTS.length);
+            document.getElementById('daily-resolution').value = RANDOM_PROMPTS[randomIndex];
+        }
+
+        async function requestAppsScript(data) {
+    const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'text/plain;charset=utf-8'
+        },
+        body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result || typeof result.ok !== 'boolean') {
+        throw new Error('서버 응답 형식이 올바르지 않습니다.');
+    }
+
+    return result;
+}
+
+async function handleFormSubmit(e) {
+    e.preventDefault();
+
+    const submitBtn = document.getElementById('submit-btn');
+
+    // 처리 중 중복 제출 방지
+    if (submitBtn.disabled) {
+        return;
+    }
+
+    if (!webhookUrl || !webhookUrl.endsWith('/exec')) {
+        showToast('출석 제출을 사용할 수 없습니다. 선생님께 문의하세요.');
+        return;
+    }
+
+    const enteredCode = document
+        .getElementById('entry-code')
+        .value
+        .trim();
+
+    if (!enteredCode) {
+        showToast('선생님이 안내한 입장 코드를 입력해 주세요.');
+        return;
+    }
+
+    if (selectedEmotions.length === 0) {
+        showToast('오늘의 감정 단어를 최소 1개 선택해주세요.');
+        return;
+    }
+
+    const originalButtonHtml = submitBtn.innerHTML;
+    let phase = 'validation';
+
+    submitBtn.disabled = true;
+
+    try {
+        // 1. 입장 코드만 먼저 확인
+        submitBtn.innerHTML = `
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            <span>입장 코드를 확인하고 있습니다…</span>
+        `;
+
+        const validation = await requestAppsScript({
+            action: 'validateEntryCode',
+            entryCode: enteredCode
+        });
+
+        if (!validation.ok) {
+            showToast(
+                validation.message ||
+                '입장 코드를 확인해 주세요.'
+            );
+            return;
+        }
+
+        // 2. 코드가 맞을 때만 출석 내용 구성 및 전송
+        const payload = {
+            timestamp: new Date().toLocaleString('ko-KR', {
+                timeZone: 'Asia/Seoul'
+            }),
+            studentInfo: document
+                .getElementById('student-info')
+                .value
+                .trim(),
+            moodTemp: document
+                .getElementById('mood-temp-range')
+                .value,
+            bodyTemp: document
+                .getElementById('selected-body-status')
+                .value,
+            emotions: [...selectedEmotions],
+            resolution: document
+                .getElementById('daily-resolution')
+                .value
+                .trim()
+        };
+
+        phase = 'submission';
+
+        submitBtn.innerHTML = `
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            <span>출석 내용을 저장하고 있습니다…</span>
+        `;
+
+        const result = await requestAppsScript({
+            action: 'submitAttendance',
+            entryCode: enteredCode,
+            ...payload
+        });
+
+        if (!result.ok) {
+            showToast(
+                result.message ||
+                '출석 내용을 저장하지 못했습니다.'
+            );
+            return;
+        }
+
+        // 서버 저장 성공 후 로컬 백업
+        // 로컬 백업 실패가 서버 저장 실패로 표시되지 않도록 분리
+        try {
+            saveToLocalStorage(payload);
+        } catch (backupError) {
+            console.warn('로컬 백업 실패:', backupError);
+        }
+
+        // 서버에서 저장 성공을 확인한 경우에만 완료 화면 표시
+        displaySuccessReceipt(payload);
+    } catch (error) {
+        console.error('출석 처리 오류:', error);
+
+        if (phase === 'validation') {
+            showToast(
+                '입장 코드를 확인하지 못했습니다. 네트워크 연결을 확인해 주세요.'
+            );
+        } else {
+            showToast(
+                '저장 결과를 확인하지 못했습니다. 재제출 전에 선생님께 저장 여부를 확인해 주세요.'
+            );
+        }
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalButtonHtml;
+    }
+}
+
+        // Display Success Summary
+        function displaySuccessReceipt(data) {
+            document.getElementById('attendance-form').classList.add('hidden');
+            const successCard = document.getElementById('success-card');
+            successCard.classList.remove('hidden');
+
+            document.getElementById('completed-timestamp').innerText = data.timestamp;
+            document.getElementById('summary-student').innerText = data.studentInfo;
+            document.getElementById('summary-mood').innerText = `${data.moodTemp}°C`;
+            document.getElementById('summary-body').innerText = data.bodyTemp;
+            document.getElementById('summary-emotions').innerText = data.emotions.join(', ');
+            document.getElementById('summary-resolution').innerText = `"${data.resolution}"`;
+
+            // Pick random mindful wisdom quote
+            const quoteIndex = Math.floor(Math.random() * MINDFUL_QUOTES.length);
+            document.getElementById('random-quote').innerText = MINDFUL_QUOTES[quoteIndex];
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Reset Form for next student
+        function resetForm() {
+            document.getElementById('attendance-form').reset();
+            selectedEmotions = [];
+            renderEmotionChips();
+            updateMoodTempDisplay(36.5);
+            selectBodyStatus('보통/양호 😌');
+            document.getElementById('selected-body-status').value = '보통/양호 😌';
+
+            document.getElementById('success-card').classList.add('hidden');
+            document.getElementById('attendance-form').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Local Storage Helpers
+        function saveToLocalStorage(data) {
+            let logs = JSON.parse(localStorage.getItem('mindful_logs') || '[]');
+            logs.push(data);
+            localStorage.setItem('mindful_logs', JSON.stringify(logs));
+            updateLocalCount();
+        }
+
+        function updateLocalCount() {
+    const logs = JSON.parse(localStorage.getItem('mindful_logs') || '[]');
+    return logs.length;
+}
+
+        function clearLocalStorage() {
+            if (confirm('로컬에 저장된 모든 출석 기록을 삭제하시겠습니까?')) {
+                localStorage.removeItem('mindful_logs');
+                updateLocalCount();
+                showToast('로컬 기록이 초기화되었습니다.');
+            }
+        }
+
+        function exportCSV() {
+            const logs = JSON.parse(localStorage.getItem('mindful_logs') || '[]');
+            if (logs.length === 0) {
+                showToast('저장된 데이터가 없습니다.');
+                return;
+            }
+
+            let csvContent = "\uFEFF일시,학번/이름,기분온도,신체상태,감정단어,오늘의다짐\n";
+            logs.forEach(row => {
+                const emotionsStr = `"${(row.emotions || []).join(', ')}"`;
+                const resolutionStr = `"${(row.resolution || '').replace(/"/g, '""')}"`;
+                csvContent += `${row.timestamp},${row.studentInfo},${row.moodTemp}°C,${row.bodyTemp},${emotionsStr},${resolutionStr}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `마음챙김_출석부_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Settings Management
+        function loadConfigFields() {
+            document.getElementById('config-passcode').value = configPasscode;
+            document.getElementById('config-webhook').value = webhookUrl;
+        }
+
+        function savePasscode() {
+            const val = document.getElementById('config-passcode').value.trim();
+            if (!val) {
+                showToast('입장 코드를 입력해 주세요.');
+                return;
+            }
+            configPasscode = val;
+            localStorage.setItem('mindful_passcode', val);
+            showToast('오늘의 입장 코드가 저장되었습니다.');
+        }
+
+function saveWebhookUrl() {
+    document.getElementById('config-webhook').value = webhookUrl;
+    showToast('연동 주소는 사이트 코드에서 공통으로 관리합니다.');
+}
+
+        function updateWebhookBannerStatus() {
+            const banner = document.getElementById('webhook-status-banner');
+            if (webhookUrl) {
+                banner.classList.add('hidden');
+            } else {
+                banner.classList.remove('hidden');
+            }
+        }
+
+        // Copy GAS Code to Clipboard (Fallback compatible)
+        function copyGasCode() {
+            const textToCopy = document.getElementById('gas-code-block').innerText;
+            const textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast('구글 앱스 스크립트 코드가 복사되었습니다!');
+            } catch (err) {
+                showToast('복사에 실패했습니다. 직접 드래그하여 복사해주세요.');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        // Modal Helpers
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        // Custom Toast Message
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-5 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-4 py-2.5 rounded-2xl shadow-xl z-50 animate-fade-in flex items-center gap-2';
+            toast.innerHTML = `<span>${message}</span>`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
+        }
+    </script>
+</body>
+</html>
